@@ -22,6 +22,53 @@ let quiz = null;
 let run = null; // the lesson in progress
 let backupMessage = '';
 
+// ---------- Light and dark mode ----------
+
+const THEME_KEY = 'step-math-theme';
+const THEME_COLORS = { light: '#f7f5ef', dark: '#14161c' };
+const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+function currentTheme() {
+  return document.documentElement.dataset.theme || (systemDark.matches ? 'dark' : 'light');
+}
+
+function syncThemeColor() {
+  const color = THEME_COLORS[currentTheme()];
+  document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+    meta.removeAttribute('media');
+    meta.content = color;
+  });
+}
+
+function toggleTheme() {
+  const next = currentTheme() === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try {
+    localStorage.setItem(THEME_KEY, next);
+  } catch {
+    // Blocked storage only means the choice lasts for this session.
+  }
+  syncThemeColor();
+  render();
+}
+
+function themeToggle() {
+  const toDark = currentTheme() === 'light';
+  const icon = toDark
+    ? '<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="currentColor"/>'
+    : '<circle cx="12" cy="12" r="4.5" fill="currentColor"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  return `<button class="theme-toggle" data-action="toggle-theme" aria-label="Switch to ${toDark ? 'dark' : 'light'} mode">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">${icon}</svg>
+    ${toDark ? 'Dark' : 'Light'}
+  </button>`;
+}
+
+// Until she picks a theme, follow the phone if its setting changes.
+systemDark.addEventListener('change', () => {
+  syncThemeColor();
+  if (view === 'home') render();
+});
+
 // Ask the browser to keep her saved progress. Harmless if unavailable.
 navigator.storage?.persist?.().catch?.(() => {});
 
@@ -104,8 +151,13 @@ function homeView() {
 
   return `<div class="screen">
     <main class="scroll home">
-      <p class="eyebrow">Math 2 Honors</p>
-      <h1 class="title">Step by Step</h1>
+      <div class="home-head">
+        <div>
+          <p class="eyebrow">Math 2 Honors</p>
+          <h1 class="title">Step by Step</h1>
+        </div>
+        ${themeToggle()}
+      </div>
       ${hero}
       <h2 class="section">Height over time</h2>
       <div class="list">
@@ -698,6 +750,7 @@ function backupView() {
 // ---------- Events ----------
 
 const actions = {
+  'toggle-theme'() { toggleTheme(); },
   home() { view = 'home'; practice = null; backupMessage = ''; render(); },
   sheet() { view = 'sheet'; render(); },
   'start-lesson'(el) { startLesson(el.dataset.lesson); },
@@ -875,6 +928,7 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+syncThemeColor();
 render();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
